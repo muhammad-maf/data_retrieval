@@ -1,6 +1,8 @@
 import numpy as np
 import math
 
+#dot product
+
 a = [3,4]
 b = [5,6]
 

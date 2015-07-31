@@ -1,4 +1,7 @@
-var a = "XD";
+/*	Muhammad Mousa
+	
+	min and LevenshteinDistance functions
+*/
 
 var min = function (a,b,c) {
 	if (a < b && a < c) return a;
@@ -6,6 +9,8 @@ var min = function (a,b,c) {
 	else return c;
 }
 
+// used for similar string comparison
+// needs more efficient implementation
 var LevenshteinDistance = function (s, len_s, t, len_t) {
 	var cost;
 	if (len_s ==0) return len_t;
@@ -21,5 +26,3 @@ var LevenshteinDistance = function (s, len_s, t, len_t) {
                  LevenshteinDistance(s, len_s    , t, len_t - 1) + 1,
                  LevenshteinDistance(s, len_s - 1, t, len_t - 1) + cost);
 }
-
-console.log (LevenshteinDistance("ddd", 3, "xds", 3));
