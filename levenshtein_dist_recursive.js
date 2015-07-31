@@ -1,6 +1,7 @@
 /*	Muhammad Mousa
 	
 	min and LevenshteinDistance functions
+	inefficient as heck, working on iterative solution
 */
 
 var min = function (a,b,c) {
