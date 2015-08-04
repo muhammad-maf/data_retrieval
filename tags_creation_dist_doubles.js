@@ -59,15 +59,19 @@ for (var i in creations.models) {
 	if (tags.join("") === "1234567891011121314151617181920212223242526") {
 		continue;
 	}
-	// literally to work around Michael's dumb creation
+	// literally to work around Michael's broken creation
+	// implement a fix to ignore tags with just numbers 
 	for (var j=0; j < tags.length; j++) {
 		tags_arr = [];
 		for (var k = j+1; k < tags.length; k++) {
-			tags_arr.push(tags[j]);
-			tags_arr.push(tags[k]);
-			tags_arr.sort();
-			creations_arr.push(tags_arr);
-			tags_arr=[];
+			if (tags[j]!==tags[k]) {
+				// No duplicates like ["space", "space"] - we don't want a tag to be identified as being similar to itself 
+				tags_arr.push(tags[j]);
+				tags_arr.push(tags[k]);
+				tags_arr.sort();
+				creations_arr.push(tags_arr);
+				tags_arr=[];
+			}
 		}
 	}
 }
@@ -85,7 +89,7 @@ const pop_group_tag_lim = Math.floor(Math.log(tag_doubles_count) / Math.log(10))
 
 const leven_lim = 3;
 // The maximum Levenshtein distance between two strings in order for them to be considered
-// similar
+// similar; 
 
 var group_tag_count = 0;
 // number of occurrences of a group of tags in arr
@@ -101,8 +105,10 @@ for (var i=0; i<creations_arr.length; i++) {
 			group_tag_count++;
 		}
 		if (group_tag_count === pop_group_tag_lim) {
-			popular_tag_groups.push(creations_arr[i]);
 			group_tag_count=0;
+			if (popular_tag_groups.join("").indexOf(creations_arr[j]) === -1) {
+				popular_tag_groups.push(creations_arr[j]);
+			}
 		}
 	}
 	group_tag_count=0;
