@@ -1,9 +1,0 @@
-#!/bin/bash
-# Quick start to dump and restore the most recent
-# MAF-API database; removes dump folder after
-#
-# Open terminal
-# cd to where this is located (e.g., Desktop)
-# ./start_cashew_maf_local
-
-gnome-terminal --tab -e "bash -c \"cd ~/Documents/projects/Matter-and-Form-API; mongodump -h mafweb.cloudapp.net -u mfuser -p 'mf_Ma!!3rf0rm*' -d matter-and-form-api; rm -rf dump; exec bash\""

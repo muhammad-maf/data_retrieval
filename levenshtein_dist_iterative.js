@@ -1,4 +1,4 @@
-function levenshtein(str1, str2) {
+var levenshtein = function (str1, str2) {
     var m = str1.length,
         n = str2.length,
         d = [],
@@ -12,7 +12,7 @@ function levenshtein(str1, str2) {
  
     for (j = 1; j <= n; j++) {
         for (i = 1; i <= m; i++) {
-            if (str1[i-1] == str2[j-1]) d[i][j] = d[i - 1][j - 1];
+            if (str1[i-1] === str2[j-1]) d[i][j] = d[i - 1][j - 1];
             else d[i][j] = Math.min(d[i-1][j], d[i][j-1], d[i-1][j-1]) + 1;
         }
     }

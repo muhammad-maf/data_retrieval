@@ -1,17 +1,6 @@
 /*	Muhammad Mousa
-	
-	A program that you paste in the browser when you navigate to
-	/creations on cashew. Finds all possible combinations of tag doubles
-	in a creation, populates an array with all these doubles for all
-	creations, and generates an array with the most popular tag doubles.
 
-	Code is currently inefficient in many places
-
-	Need to implement Levenshtein (I have this) / Damereau-Levenshtein (don't have yet)
-	distance for similarly named tags
-
-	Recommended to set creation limit to the
-	max number of creations in API, Frontend and Router until a better fix is found.
+	title similarity? not very important rn
 */
 
 var min = function (a,b,c) {

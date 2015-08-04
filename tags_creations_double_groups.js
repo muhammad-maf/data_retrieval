@@ -1,24 +1,25 @@
 /*	Muhammad Mousa
 	
-	A program that you paste in the browser when you navigate to
+	A program that you paste in the browser console when you navigate to
 	/creations on cashew. Finds all possible combinations of tag doubles
 	in a creation, populates an array with all these doubles for all
-	creations, and generates an array with the most popular tag doubles.
+	creations, and generates an array with the most popular tag doubles,
+	taking into account similar spelling / typos.
 
-	Code is currently inefficient in many places
+	Coocurrences and edit distance are implemented
 
-	Need to implement Levenshtein (I have this) / Damereau-Levenshtein (don't have yet)
-	distance for similarly named tags
+	Would like to have topic distribution once tags that describe the same event that
+	don't cooccur start showing up
+	(e.g., #gocavs #gowarriors for bball / #vivabrazil #vivaespana for a fifa match)
+
+	Code is currently inefficient in a few place
+	Would like to implement Damereau-Levenshtein distance (don't have yet)
+	for similarly named tags. Levenshtein distance doesn't take into account
+	transposition
 
 	Recommended to set creation limit to the
 	max number of creations in API, Frontend and Router until a better fix is found.
 */
-
-var min = function (a,b,c) {
-	if (a < b && a < c) return a;
-	if (b < a && b < c) return b;
-	else return c;
-}
 
 // Levenshtein distance, used for similar string comparison
 var lev_dist = function (str1, str2) {
@@ -35,7 +36,7 @@ var lev_dist = function (str1, str2) {
  
     for (j = 1; j <= n; j++) {
         for (i = 1; i <= m; i++) {
-            if (str1[i-1] == str2[j-1]) d[i][j] = d[i - 1][j - 1];
+            if (str1[i-1] === str2[j-1]) d[i][j] = d[i - 1][j - 1];
             else d[i][j] = Math.min(d[i-1][j], d[i][j-1], d[i-1][j-1]) + 1;
         }
     }
@@ -113,5 +114,17 @@ for (var i=0; i<creations_arr.length; i++) {
 	}
 	group_tag_count=0;
 }
+
+var similar_tags = [];
+var cur_search = "scan";
+
+for (var i=0; i < popular_tag_groups.length; i++) {
+	var found_index = popular_tag_groups[i].indexOf(cur_search);
+	if (found_index !== -1) {
+		similar_tags.push(popular_tag_groups[i][1-found_index]);
+	}
+}
+
+console.log(similar_tags);
 
 console.log(popular_tag_groups);
