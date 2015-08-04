@@ -20,22 +20,26 @@ var min = function (a,b,c) {
 	else return c;
 }
 
-// used for similar string comparison
-// needs more efficient implementation
-var LevenshteinDistance = function (s, len_s, t, len_t) {
-	var cost;
-	if (len_s ==0) return len_t;
-	if (len_t ==0) return len_s;
-
-	if (s[len_s-1] == t[len_t-1]) {
-		cost=0;
-	}
-	else {
-		cost=1;
-	}
-	return min(LevenshteinDistance(s, len_s - 1, t, len_t    ) + 1,
-                 LevenshteinDistance(s, len_s    , t, len_t - 1) + 1,
-                 LevenshteinDistance(s, len_s - 1, t, len_t - 1) + cost);
+// Levenshtein distance, used for similar string comparison
+var lev_dist = function (str1, str2) {
+    var m = str1.length,
+        n = str2.length,
+        d = [],
+        i, j;
+ 
+    if (!m) return n;
+    if (!n) return m;
+ 
+    for (i = 0; i <= m; i++) d[i] = [i];
+    for (j = 0; j <= n; j++) d[0][j] = j;
+ 
+    for (j = 1; j <= n; j++) {
+        for (i = 1; i <= m; i++) {
+            if (str1[i-1] == str2[j-1]) d[i][j] = d[i - 1][j - 1];
+            else d[i][j] = Math.min(d[i-1][j], d[i][j-1], d[i-1][j-1]) + 1;
+        }
+    }
+    return d[m][n];
 }
 
 var creations = app.collections.creations = app.collections.creations || new CreationsCollection();
@@ -93,14 +97,15 @@ for (var i=0; i<creations_arr.length; i++) {
 	// parse tags array (double) as string for easy comparisons; this works as tags array is sorted
 	for (var j=i+1; j<creations_arr.length; j++) {
 		var comp_tag_group_str = creations_arr[j].join("");
-		if (LevenshteinDistance(comp_tag_group_str, comp_tag_group_str.length, cur_tag_group_str, cur_tag_group_str.length) <= leven_lim) {
+		if (lev_dist(comp_tag_group_str, cur_tag_group_str) <= leven_lim) {
 			group_tag_count++;
 		}
-		if (group_tag_count == popular_group_tag_limit) {
+		if (group_tag_count === pop_group_tag_lim) {
 			popular_tag_groups.push(creations_arr[i]);
 			group_tag_count=0;
 		}
 	}
 	group_tag_count=0;
 }
+
 console.log(popular_tag_groups);
