@@ -2,6 +2,8 @@
 	
 	Identical to tags_creation_dist_doubles, except this compares tag triples
 	Very experimental :p
+
+	Need to merge double and triple similarity together - triple tag similarity is too specific
 */
 
 var min = function (a,b,c) {
@@ -60,6 +62,8 @@ for (var i in creations.models) {
 		}
 	}
 }
+
+console.log(creations_arr);
 
 var tag_triples_count = creations_arr.length;
 // number of tag triples
