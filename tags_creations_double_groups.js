@@ -12,7 +12,9 @@
 	don't cooccur start showing up
 	(e.g., #gocavs #gowarriors for bball / #vivabrazil #vivaespana for a fifa match)
 
-	Code is currently inefficient in a few place
+	Code is currently inefficient as hell...somewhere between
+	O(n^3) and O(2^n) LOL
+
 	Would like to implement Damereau-Levenshtein distance (don't have yet)
 	for similarly named tags. Levenshtein distance doesn't take into account
 	transposition
@@ -116,7 +118,7 @@ for (var i=0; i<creations_arr.length; i++) {
 }
 
 var similar_tags = [];
-var cur_search = "scan";
+var cur_search = "space";
 
 for (var i=0; i < popular_tag_groups.length; i++) {
 	var found_index = popular_tag_groups[i].indexOf(cur_search);

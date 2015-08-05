@@ -8,25 +8,25 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
     function mapFunc() {
 
         var lev_dist = function (str1, str2) {
-        var m = str1.length,
-            n = str2.length,
-            d = [],
-            i, j;
-     
-        if (!m) return n;
-        if (!n) return m;
-     
-        for (i = 0; i <= m; i++) d[i] = [i];
-        for (j = 0; j <= n; j++) d[0][j] = j;
-     
-        for (j = 1; j <= n; j++) {
-            for (i = 1; i <= m; i++) {
-                if (str1[i-1] === str2[j-1]) d[i][j] = d[i - 1][j - 1];
-                else d[i][j] = Math.min(d[i-1][j], d[i][j-1], d[i-1][j-1]) + 1;
+            var m = str1.length,
+                n = str2.length,
+                d = [],
+                i, j;
+         
+            if (!m) return n;
+            if (!n) return m;
+         
+            for (i = 0; i <= m; i++) d[i] = [i];
+            for (j = 0; j <= n; j++) d[0][j] = j;
+         
+            for (j = 1; j <= n; j++) {
+                for (i = 1; i <= m; i++) {
+                    if (str1[i-1] === str2[j-1]) d[i][j] = d[i - 1][j - 1];
+                    else d[i][j] = Math.min(d[i-1][j], d[i][j-1], d[i-1][j-1]) + 1;
+                }
             }
+            return d[m][n];
         }
-        return d[m][n];
-    }
 
         var creations_arr = [];
     	for (var i in this) {
@@ -50,6 +50,7 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
                 }
             }
         }
+        
         var tag_doubles_count = creations_arr.length;
         // number of tag doubles
 
@@ -78,7 +79,10 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
                 if (group_tag_count === pop_group_tag_lim) {
                     group_tag_count=0;
                     if (popular_tag_groups.join("").indexOf(creations_arr[j]) === -1) {
-                        emit (creations_arr[j].join(""), 1);
+                        var key = {
+                            tags: creations_arr[j]
+                        };
+                        emit (key, 1);
                         // popular_tag_groups.push(creations_arr[j]);
                     }
                 }
@@ -104,7 +108,9 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
     	}
 
     	collection.find({}).sort({value: 1}).toArray(function(err, tags) {
-    		console.log(tags);
+    		tags.forEach(function(tag) {
+                console.log(JSON.stringify(tag));
+            });
     	});
     });
    
