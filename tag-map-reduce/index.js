@@ -95,6 +95,11 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
 
         var popular_tags_len = popular_tags.length;
 
+        for (var i = 0; i < popular_tags_len; i++) {
+            emit({arr: popular_tags[i]}, 1);
+        }
+        /*
+
         function uniq_fast(a) {
             var seen = {};
             var out = [];
@@ -117,25 +122,26 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
 
         var unique_tags = uniq_fast(unique_tags_d);
         var unique_tags_len = unique_tags.length;
-
         for (var i=0; i < unique_tags_len; i++) {
             var cur_search = unique_tags[i];
             for (var j=0; j < popular_tags_len; j++) {
                 var found_index = popular_tags[j].indexOf(cur_search);
                 if (found_index !== -1) {
+                    // emit (cur_search, popular_tags[j][1-found_index]);
                     similar_sub_tags.push(popular_tags[j][1-found_index]);
                 }
             }
-            emit (cur_search, similar_sub_tags);
+            // emit (cur_search, 1);
             // console.log(cur_search + " ---> " + similar_sub_tags);
             similar_sub_tags=[];
         }
 
+        */
 
     }
 
-    function reduceFunc(tag, sub_tags) {
-    	return Array.sum(counts);
+    function reduceFunc(tag, counts) {
+        return Array.sum(counts);
     }
 
     creationsCollection.mapReduce(mapFunc, reduceFunc, {
@@ -144,7 +150,8 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
     	},
     	query: {
 
-    	}
+    	},
+        verbose: true
     }, function(err, collection) {
     	if (err) {
     		return console.error(err);

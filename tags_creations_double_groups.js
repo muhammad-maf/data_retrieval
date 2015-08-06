@@ -123,6 +123,8 @@ for (var i=0; i<creations_len; i++) {
 
 var popular_tags_len = popular_tags.length;
 
+console.log (popular_tags);
+
 function uniq_fast(a) {
     var seen = {};
     var out = [];
@@ -146,6 +148,8 @@ var unique_tags_d = [].concat.apply([], popular_tags);
 var unique_tags = uniq_fast(unique_tags_d);
 var unique_tags_len = unique_tags.length;
 
+var unique_related_tags = [];
+
 for (var i=0; i < unique_tags_len; i++) {
 	var cur_search = unique_tags[i];
 	for (var j=0; j < popular_tags_len; j++) {
@@ -154,6 +158,8 @@ for (var i=0; i < unique_tags_len; i++) {
 			similar_sub_tags.push(popular_tags[j][1-found_index]);
 		}
 	}
-	console.log(cur_search + " ---> " + similar_sub_tags);
+	unique_related_tags.push([cur_search, similar_sub_tags]);
 	similar_sub_tags=[];
 }
+
+// console.log(unique_related_tags);
