@@ -6,6 +6,11 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
     var creationsCollection = db.collection('creations');
 
     function mapFunc() {
+
+
+
+
+
         var lev_dist = function (str1, str2) {
             var m = str1.length,
                 n = str2.length,
@@ -30,6 +35,7 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
         var creations_arr = [];
     	for (var i in this) {
             var tags = this.tags;
+            var tags_len = tags.length;
             if (tags.join("") === "1234567891011121314151617181920212223242526") {
                 continue;
             }
@@ -49,6 +55,8 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
                 }
             }
         }
+
+        var creations_len = creations_arr.length;
         
         var tag_doubles_count = creations_arr.length;
         // number of tag doubles
@@ -65,32 +73,68 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
         var group_tag_count = 0;
         // number of occurrences of a group of tags in arr
 
-        var popular_tag_groups = [];
+        var popular_tags = [];
 
-        for (var i=0; i<creations_arr.length; i++) {
+        for (var i=0; i<creations_len; i++) {
             var cur_tag_group_str = creations_arr[i].join("");
             // parse tags array (double) as string for easy comparisons; this works as tags array is sorted
-            for (var j=i+1; j<creations_arr.length; j++) {
+            for (var j=i+1; j<creations_len; j++) {
                 var comp_tag_group_str = creations_arr[j].join("");
                 if (lev_dist(comp_tag_group_str, cur_tag_group_str) <= leven_lim) {
                     group_tag_count++;
                 }
                 if (group_tag_count === pop_group_tag_lim) {
                     group_tag_count=0;
-                    if (popular_tag_groups.join("").indexOf(creations_arr[j]) === -1) {
-                        var key = {
-                            tags: creations_arr[j]
-                        };
-                        emit (key, 1);
-                        // popular_tag_groups.push(creations_arr[j]);
+                    if (popular_tags.join("").indexOf(creations_arr[j]) === -1) {
+                        popular_tags.push(creations_arr[j]);
                     }
                 }
             }
             group_tag_count=0;
         }
+
+        var popular_tags_len = popular_tags.length;
+
+        function uniq_fast(a) {
+            var seen = {};
+            var out = [];
+            var len = a.length;
+            var j = 0;
+            for(var i = 0; i < len; i++) {
+                 var item = a[i];
+                 if(seen[item] !== 1) {
+                       seen[item] = 1;
+                       out[j++] = item;
+                 }
+            }
+            return out;
+        }
+
+        var similar_tags, similar_sub_tags = [];
+
+        var unique_tags_d = [].concat.apply([], popular_tags);
+        // find all the unique tags that are considered popular (flattens popular_tags)
+
+        var unique_tags = uniq_fast(unique_tags_d);
+        var unique_tags_len = unique_tags.length;
+
+        for (var i=0; i < unique_tags_len; i++) {
+            var cur_search = unique_tags[i];
+            for (var j=0; j < popular_tags_len; j++) {
+                var found_index = popular_tags[j].indexOf(cur_search);
+                if (found_index !== -1) {
+                    similar_sub_tags.push(popular_tags[j][1-found_index]);
+                }
+            }
+            emit (cur_search, similar_sub_tags);
+            // console.log(cur_search + " ---> " + similar_sub_tags);
+            similar_sub_tags=[];
+        }
+
+
     }
 
-    function reduceFunc(tag, counts) {
+    function reduceFunc(tag, sub_tags) {
     	return Array.sum(counts);
     }
 

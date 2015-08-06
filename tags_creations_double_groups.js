@@ -123,8 +123,6 @@ for (var i=0; i<creations_len; i++) {
 
 var popular_tags_len = popular_tags.length;
 
-// console.log(popular_tags);
-
 function uniq_fast(a) {
     var seen = {};
     var out = [];
@@ -140,7 +138,6 @@ function uniq_fast(a) {
     return out;
 }
 
-
 var similar_tags, similar_sub_tags = [];
 
 var unique_tags_d = [].concat.apply([], popular_tags);
@@ -151,7 +148,6 @@ var unique_tags_len = unique_tags.length;
 
 for (var i=0; i < unique_tags_len; i++) {
 	var cur_search = unique_tags[i];
-	// console.log(cur_search);
 	for (var j=0; j < popular_tags_len; j++) {
 		var found_index = popular_tags[j].indexOf(cur_search);
 		if (found_index !== -1) {
@@ -161,20 +157,3 @@ for (var i=0; i < unique_tags_len; i++) {
 	console.log(cur_search + " ---> " + similar_sub_tags);
 	similar_sub_tags=[];
 }
-
-console.log(similar_tags);
-
-/*
-var cur_search = "space";
-
-for (var i=0; i < popular_tags_len; i++) {
-	var found_index = popular_tags[i].indexOf(cur_search);
-	if (found_index !== -1) {
-		similar_tags.push(popular_tags[i][1-found_index]);
-	}
-}
-*/
-
-//console.log(unique_tags);
-
-//console.log(popular_tags);
