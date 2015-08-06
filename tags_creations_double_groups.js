@@ -59,14 +59,15 @@ creations_arr = [];
 
 for (var i in creations.models) {
 	tags = creations.models[i]._values.tags;
+	var tags_len = tags.length;
 	if (tags.join("") === "1234567891011121314151617181920212223242526") {
 		continue;
 	}
 	// literally to work around Michael's broken creation
 	// need a fix to ignore tags with just numbers 
-	for (var j=0; j < tags.length; j++) {
+	for (var j=0; j < tags_len; j++) {
 		tags_arr = [];
-		for (var k = j+1; k < tags.length; k++) {
+		for (var k = j+1; k < tags_len; k++) {
 			if (tags[j]!==tags[k]) {
 				// No duplicates like ["space", "space"] - we don't want a tag to be identified as being similar to itself 
 				tags_arr.push(tags[j]);
@@ -81,6 +82,8 @@ for (var i in creations.models) {
 // populate creations_arr with all the combinations of tag doubles
 
 // console.log(creations_arr);
+
+var creations_len = creations_arr.length;
 
 var tag_doubles_count = creations_arr.length;
 // number of tag doubles
@@ -97,36 +100,81 @@ const leven_lim = 3;
 var group_tag_count = 0;
 // number of occurrences of a group of tags in arr
 
-var popular_tag_groups = [];
+var popular_tags = [];
 
-for (var i=0; i<creations_arr.length; i++) {
+
+for (var i=0; i<creations_len; i++) {
 	var cur_tag_group_str = creations_arr[i].join("");
 	// parse tags array (double) as string for easy comparisons; this works as tags array is sorted
-	for (var j=i+1; j<creations_arr.length; j++) {
+	for (var j=i+1; j<creations_len; j++) {
 		var comp_tag_group_str = creations_arr[j].join("");
 		if (lev_dist(comp_tag_group_str, cur_tag_group_str) <= leven_lim) {
 			group_tag_count++;
 		}
 		if (group_tag_count === pop_group_tag_lim) {
 			group_tag_count=0;
-			if (popular_tag_groups.join("").indexOf(creations_arr[j]) === -1) {
-				popular_tag_groups.push(creations_arr[j]);
+			if (popular_tags.join("").indexOf(creations_arr[j]) === -1) {
+				popular_tags.push(creations_arr[j]);
 			}
 		}
 	}
 	group_tag_count=0;
 }
 
-var similar_tags = [];
-var cur_search = "space";
+var popular_tags_len = popular_tags.length;
 
-for (var i=0; i < popular_tag_groups.length; i++) {
-	var found_index = popular_tag_groups[i].indexOf(cur_search);
-	if (found_index !== -1) {
-		similar_tags.push(popular_tag_groups[i][1-found_index]);
+// console.log(popular_tags);
+
+function uniq_fast(a) {
+    var seen = {};
+    var out = [];
+    var len = a.length;
+    var j = 0;
+    for(var i = 0; i < len; i++) {
+         var item = a[i];
+         if(seen[item] !== 1) {
+               seen[item] = 1;
+               out[j++] = item;
+         }
+    }
+    return out;
+}
+
+
+var similar_tags, similar_sub_tags = [];
+
+var unique_tags_d = [].concat.apply([], popular_tags);
+// find all the unique tags that are considered popular (flattens popular_tags)
+
+var unique_tags = uniq_fast(unique_tags_d);
+var unique_tags_len = unique_tags.length;
+
+for (var i=0; i < unique_tags_len; i++) {
+	var cur_search = unique_tags[i];
+	// console.log(cur_search);
+	for (var j=0; j < popular_tags_len; j++) {
+		var found_index = popular_tags[j].indexOf(cur_search);
+		if (found_index !== -1) {
+			similar_sub_tags.push(popular_tags[j][1-found_index]);
+		}
 	}
+	console.log(cur_search + " ---> " + similar_sub_tags);
+	similar_sub_tags=[];
 }
 
 console.log(similar_tags);
 
-console.log(popular_tag_groups);
+/*
+var cur_search = "space";
+
+for (var i=0; i < popular_tags_len; i++) {
+	var found_index = popular_tags[i].indexOf(cur_search);
+	if (found_index !== -1) {
+		similar_tags.push(popular_tags[i][1-found_index]);
+	}
+}
+*/
+
+//console.log(unique_tags);
+
+//console.log(popular_tags);

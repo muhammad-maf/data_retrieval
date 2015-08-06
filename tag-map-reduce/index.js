@@ -6,7 +6,6 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
     var creationsCollection = db.collection('creations');
 
     function mapFunc() {
-
         var lev_dist = function (str1, str2) {
             var m = str1.length,
                 n = str2.length,
