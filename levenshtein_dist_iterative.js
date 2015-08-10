@@ -1,3 +1,4 @@
+// Levenshtein distance, used for similar string comparison
 var levenshtein = function (str1, str2) {
     var m = str1.length,
         n = str2.length,

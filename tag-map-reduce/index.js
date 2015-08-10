@@ -5,12 +5,8 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
  
     var creationsCollection = db.collection('creations');
 
-    function mapFunc() {
-
-
-
-
-
+    function mapFunc1() {
+        // Levenshtein distance, used for similar string comparison
         var lev_dist = function (str1, str2) {
             var m = str1.length,
                 n = str2.length,
@@ -34,13 +30,14 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
 
         var creations_arr = [];
     	for (var i in this) {
+            if (this.state === -1) continue;
             var tags = this.tags;
             var tags_len = tags.length;
             if (tags.join("") === "1234567891011121314151617181920212223242526") {
                 continue;
             }
             // literally to work around Michael's broken creation
-            // need a fix to ignore tags with just numbers 
+            // need a fix to ignore tags with just numbers
             for (var j=0; j < tags.length; j++) {
                 tags_arr = [];
                 for (var k = j+1; k < tags.length; k++) {
@@ -56,10 +53,8 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
             }
         }
 
-        var creations_len = creations_arr.length;
-        
-        var tag_doubles_count = creations_arr.length;
-        // number of tag doubles
+        const tag_doubles_count = creations_arr.length;
+        // number of tag doubles; setting length as constant is supposed to be more efficient than calling .length each time
 
         const pop_group_tag_lim = Math.floor(Math.log(tag_doubles_count) / Math.log(10));
         // the number of occurrences of a group of tags necessary to make them "popular"
@@ -75,10 +70,10 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
 
         var popular_tags = [];
 
-        for (var i=0; i<creations_len; i++) {
+        for (var i=0; i<tag_doubles_count; i++) {
             var cur_tag_group_str = creations_arr[i].join("");
             // parse tags array (double) as string for easy comparisons; this works as tags array is sorted
-            for (var j=i+1; j<creations_len; j++) {
+            for (var j=i+1; j<tag_doubles_count; j++) {
                 var comp_tag_group_str = creations_arr[j].join("");
                 if (lev_dist(comp_tag_group_str, cur_tag_group_str) <= leven_lim) {
                     group_tag_count++;
@@ -86,6 +81,7 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
                 if (group_tag_count === pop_group_tag_lim) {
                     group_tag_count=0;
                     if (popular_tags.join("").indexOf(creations_arr[j]) === -1) {
+                        emit({arr: creations_arr[j]}, 1);
                         popular_tags.push(creations_arr[j]);
                     }
                 }
@@ -93,11 +89,13 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
             group_tag_count=0;
         }
 
-        var popular_tags_len = popular_tags.length;
+        // var popular_tags_len = popular_tags.length;
 
-        for (var i = 0; i < popular_tags_len; i++) {
-            emit({arr: popular_tags[i]}, 1);
-        }
+        // for (var i = 0; i < popular_tags_len; i++) {
+        //     emit({arr: popular_tags[i]}, 1);
+        // }
+
+
         /*
 
         function uniq_fast(a) {
@@ -140,13 +138,13 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
 
     }
 
-    function reduceFunc(tag, counts) {
+    function reduceFunc1(tag, counts) {
         return Array.sum(counts);
     }
 
-    creationsCollection.mapReduce(mapFunc, reduceFunc, {
+    creationsCollection.mapReduce(mapFunc1, reduceFunc1, {
     	out: {
-    		replace: "creations_tags_reduced"
+    		replace: "popularTags"
     	},
     	query: {
 
@@ -163,5 +161,14 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
             });
     	});
     });
-   
-  });
+
+    var popularTagsCollection = db.collection('popularTags');
+
+    function mapFunc2 () {
+        // 
+    }
+
+    function reduceFunc2 (tag, count) {
+        // 
+    }
+});
