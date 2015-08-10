@@ -57,6 +57,8 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
         return Array.sum(counts);
     }
 
+    console.time("mapReduce");
+
     creationsCollection.mapReduce(mapFunc1, reduceFunc1, {
     	out: {
     		replace: "tagDoublesCount"
@@ -105,10 +107,25 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
 
             unique_tags_d = [].concat.apply([], popular_tags);
 
-            for (var i=0; i<unique_tags_d.length; i++) {
-                emit ({a: unique_tags_d[i]}, 1);
+            var unique_tags = uniq_fast(unique_tags_d);
+            var unique_tags_len = unique_tags.length;
+
+            var similar_sub_tags = [];
+            var unique_related_tags = [];
+
+            for (var i=0; i < unique_tags_len; i++) {
+                var cur_search = unique_tags[i];
+                for (var j=0; j < popular_tags.length; j++) {
+                    var found_index = popular_tags[j].indexOf(cur_search);
+                    if (found_index !== -1) {
+                        similar_sub_tags.push(popular_tags[j][1-found_index]);
+                    }
+                }
+                emit ({a: cur_search, b: similar_sub_tags}, 1);
+                //unique_related_tags.push([cur_search, similar_sub_tags]);
+                similar_sub_tags=[];
             }
-            
+
         }
 
         function reduceFunc2 (tag, count) {
@@ -131,10 +148,13 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
             if (err) {
                 return console.error(err);
             }
-            collection.find({}).sort({value: 1}).toArray(function(err, tags) {
+            collection.find().sort({value: 1}).toArray(function(err, tags) {
                 tags.forEach(function(tag) {
                     console.log(JSON.stringify(tag));
+
+
                 });
+                console.timeEnd("mapReduce");
             });
         });
 
