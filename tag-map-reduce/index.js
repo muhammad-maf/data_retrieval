@@ -29,13 +29,10 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
         }
 
         var creations_arr = [];
-    	for (var i in this) {
-            if (this.state === -1) continue;
-            var tags = this.tags;
-            var tags_len = tags.length;
-            if (tags.join("") === "1234567891011121314151617181920212223242526") {
-                continue;
-            }
+        
+        var tags = this.tags;
+        var tags_len = tags.length;
+        if (tags.join("") !== "1234567891011121314151617181920212223242526") {
             // literally to work around Michael's broken creation
             // need a fix to ignore tags with just numbers
             for (var j=0; j < tags.length; j++) {
@@ -52,6 +49,7 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
                 }
             }
         }
+        
 
         const tag_doubles_count = creations_arr.length;
         // number of tag doubles; setting length as constant is supposed to be more efficient than calling .length each time
@@ -90,11 +88,6 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
         }
 
         // var popular_tags_len = popular_tags.length;
-
-        // for (var i = 0; i < popular_tags_len; i++) {
-        //     emit({arr: popular_tags[i]}, 1);
-        // }
-
 
         /*
 
@@ -144,31 +137,55 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
 
     creationsCollection.mapReduce(mapFunc1, reduceFunc1, {
     	out: {
-    		replace: "popularTags"
+    		replace: "tagDoublesCount"
     	},
     	query: {
-
+            state: 1
     	},
         verbose: true
-    }, function(err, collection) {
+    }, function(err, popularTagsCollection, result) {
     	if (err) {
     		return console.error(err);
     	}
 
-    	collection.find({}).sort({value: 1}).toArray(function(err, tags) {
+        console.log("result?", result);
+
+    	popularTagsCollection.find({}).sort({value: 1}).toArray(function(err, tags) {
     		tags.forEach(function(tag) {
                 console.log(JSON.stringify(tag));
             });
     	});
+
+        function mapFunc2 () {
+            //this = {_id: {arr: [tag1, tag2]}, value: n};
+        }
+
+        function reduceFunc2 (tag, count) {
+            var lmao = {a: count};
+            return lmao;
+        }
+
+        popularTagsCollection.mapReduce(mapFunc2, reduceFunc2, {
+            out: {
+                replace: "NewCollection"
+            },
+            query: {
+
+            },
+            verbose: true
+        }, function(err, collection) {
+            if (err) {
+                return console.error(err);
+            }
+
+            collection.find({}).sort({value: 1}).toArray(function(err, tags) {
+                tags.forEach(function(tag) {
+                    console.log(JSON.stringify(tag));
+                });
+            });
+        });
     });
 
-    var popularTagsCollection = db.collection('popularTags');
+    
 
-    function mapFunc2 () {
-        // 
-    }
-
-    function reduceFunc2 (tag, count) {
-        // 
-    }
 });
