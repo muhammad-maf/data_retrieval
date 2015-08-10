@@ -4,8 +4,6 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
     if(err) throw err;
  
     var creationsCollection = db.collection('creations');
-    var creations_arr = [];
-    var popular_tags = [];
 
     function mapFunc1() {
         // Levenshtein distance, used for similar string comparison
@@ -28,11 +26,11 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
             }
             return d[m][n];
         }
-
-        //var creations_arr = [];
         
         var tags = this.tags;
         var tags_len = tags.length;
+        var creations_arr = [];
+
         if (tags.join("") !== "1234567891011121314151617181920212223242526") {
             // literally to work around Michael's broken creation
             // need a fix to ignore tags with just numbers
@@ -44,7 +42,7 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
                         tags_arr.push(tags[j]);
                         tags_arr.push(tags[k]);
                         tags_arr.sort();
-                        emit ({a: tags_arr}, 1);
+                        emit ({tags: tags_arr}, 1);
                         creations_arr.push(tags_arr);
                         tags_arr=[];
                     }
@@ -63,10 +61,7 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
     	out: {
     		replace: "tagDoublesCount"
     	},
-        scope: {
-            creations_arr: creations_arr,
-            popular_tags: popular_tags
-        },
+
     	query: {
             state: 1
     	},
@@ -77,28 +72,59 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
     	}
 
         console.log("result?", result);
-
+/*
     	popularTagsCollection.find({}).sort({value: 1}).toArray(function(err, tags) {
     		tags.forEach(function(tag) {
                 console.log(JSON.stringify(tag));
             });
     	});
+*/
+        var popular_tags = [];
+
+        var unique_tags_d = []; //[ ].concat.apply([], popular_tags);
+        // find all the unique tags that are considered popular (flattens popular_tags)
 
         function mapFunc2 () {
+            popular_tags.push(this._id.tags);
             //this = {_id: {arr: [tag1, tag2]}, value: n};
+
+            function uniq_fast(a) {
+                var seen = {};
+                var out = [];
+                var len = a.length;
+                var j = 0;
+                for(var i = 0; i < len; i++) {
+                     var item = a[i];
+                     if(seen[item] !== 1) {
+                           seen[item] = 1;
+                           out[j++] = item;
+                     }
+                }
+                return out;
+            }
+
+            unique_tags_d = [].concat.apply([], popular_tags);
+
+            for (var i=0; i<unique_tags_d.length; i++) {
+                emit ({a: unique_tags_d[i]}, 1);
+            }
+            
         }
 
         function reduceFunc2 (tag, count) {
-            var lmao = {a: count};
-            return lmao;
+            return Array.sum(count);
         }
-        /*
+        
         popularTagsCollection.mapReduce(mapFunc2, reduceFunc2, {
             out: {
-                replace: "NewCollection"
+                replace: "SimilarTags"
             },
             query: {
-
+                value: {$gt: 1}
+            },
+            scope: {
+                popular_tags: popular_tags,
+                unique_tags_d: unique_tags_d
             },
             verbose: true
         }, function(err, collection) {
@@ -111,7 +137,7 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
                 });
             });
         });
-        */
+
     });
 
     
