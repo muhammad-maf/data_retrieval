@@ -4,6 +4,8 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
     if(err) throw err;
  
     var creationsCollection = db.collection('creations');
+    var creations_arr = [];
+    var popular_tags = [];
 
     function mapFunc1() {
         // Levenshtein distance, used for similar string comparison
@@ -15,7 +17,6 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
          
             if (!m) return n;
             if (!n) return m;
-         
             for (i = 0; i <= m; i++) d[i] = [i];
             for (j = 0; j <= n; j++) d[0][j] = j;
          
@@ -28,7 +29,7 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
             return d[m][n];
         }
 
-        var creations_arr = [];
+        //var creations_arr = [];
         
         var tags = this.tags;
         var tags_len = tags.length;
@@ -43,6 +44,7 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
                         tags_arr.push(tags[j]);
                         tags_arr.push(tags[k]);
                         tags_arr.sort();
+                        emit ({a: tags_arr}, 1);
                         creations_arr.push(tags_arr);
                         tags_arr=[];
                     }
@@ -50,84 +52,6 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
             }
         }
         
-
-        const tag_doubles_count = creations_arr.length;
-        // number of tag doubles; setting length as constant is supposed to be more efficient than calling .length each time
-
-        const pop_group_tag_lim = Math.floor(Math.log(tag_doubles_count) / Math.log(10));
-        // the number of occurrences of a group of tags necessary to make them "popular"
-        // Note: The math makes this program scalable so that it adds 1 to popular_group_tag_limit
-        //     every time the number of tag doubles increases by an order of magnitude in base 10
-
-        const leven_lim = 3;
-        // The maximum Levenshtein distance between two strings in order for them to be considered
-        // similar; 
-
-        var group_tag_count = 0;
-        // number of occurrences of a group of tags in arr
-
-        var popular_tags = [];
-
-        for (var i=0; i<tag_doubles_count; i++) {
-            var cur_tag_group_str = creations_arr[i].join("");
-            // parse tags array (double) as string for easy comparisons; this works as tags array is sorted
-            for (var j=i+1; j<tag_doubles_count; j++) {
-                var comp_tag_group_str = creations_arr[j].join("");
-                if (lev_dist(comp_tag_group_str, cur_tag_group_str) <= leven_lim) {
-                    group_tag_count++;
-                }
-                if (group_tag_count === pop_group_tag_lim) {
-                    group_tag_count=0;
-                    if (popular_tags.join("").indexOf(creations_arr[j]) === -1) {
-                        emit({arr: creations_arr[j]}, 1);
-                        popular_tags.push(creations_arr[j]);
-                    }
-                }
-            }
-            group_tag_count=0;
-        }
-
-        // var popular_tags_len = popular_tags.length;
-
-        /*
-
-        function uniq_fast(a) {
-            var seen = {};
-            var out = [];
-            var len = a.length;
-            var j = 0;
-            for(var i = 0; i < len; i++) {
-                 var item = a[i];
-                 if(seen[item] !== 1) {
-                       seen[item] = 1;
-                       out[j++] = item;
-                 }
-            }
-            return out;
-        }
-
-        var similar_tags, similar_sub_tags = [];
-
-        var unique_tags_d = [].concat.apply([], popular_tags);
-        // find all the unique tags that are considered popular (flattens popular_tags)
-
-        var unique_tags = uniq_fast(unique_tags_d);
-        var unique_tags_len = unique_tags.length;
-        for (var i=0; i < unique_tags_len; i++) {
-            var cur_search = unique_tags[i];
-            for (var j=0; j < popular_tags_len; j++) {
-                var found_index = popular_tags[j].indexOf(cur_search);
-                if (found_index !== -1) {
-                    // emit (cur_search, popular_tags[j][1-found_index]);
-                    similar_sub_tags.push(popular_tags[j][1-found_index]);
-                }
-            }
-            // emit (cur_search, 1);
-            // console.log(cur_search + " ---> " + similar_sub_tags);
-            similar_sub_tags=[];
-        }
-
-        */
 
     }
 
@@ -139,6 +63,10 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
     	out: {
     		replace: "tagDoublesCount"
     	},
+        scope: {
+            creations_arr: creations_arr,
+            popular_tags: popular_tags
+        },
     	query: {
             state: 1
     	},
@@ -164,7 +92,7 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
             var lmao = {a: count};
             return lmao;
         }
-
+        /*
         popularTagsCollection.mapReduce(mapFunc2, reduceFunc2, {
             out: {
                 replace: "NewCollection"
@@ -177,13 +105,13 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
             if (err) {
                 return console.error(err);
             }
-
             collection.find({}).sort({value: 1}).toArray(function(err, tags) {
                 tags.forEach(function(tag) {
                     console.log(JSON.stringify(tag));
                 });
             });
         });
+        */
     });
 
     
