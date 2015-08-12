@@ -7,33 +7,14 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
 
     function mapFunc1() {
         // Levenshtein distance, used for similar string comparison
-        var lev_dist = function (str1, str2) {
-            var m = str1.length,
-                n = str2.length,
-                d = [],
-                i, j;
-         
-            if (!m) return n;
-            if (!n) return m;
-            for (i = 0; i <= m; i++) d[i] = [i];
-            for (j = 0; j <= n; j++) d[0][j] = j;
-         
-            for (j = 1; j <= n; j++) {
-                for (i = 1; i <= m; i++) {
-                    if (str1[i-1] === str2[j-1]) d[i][j] = d[i - 1][j - 1];
-                    else d[i][j] = Math.min(d[i-1][j], d[i][j-1], d[i-1][j-1]) + 1;
-                }
-            }
-            return d[m][n];
-        }
+        
         
         var tags = this.tags;
         var tags_len = tags.length;
         var creations_arr = [];
 
-        if (tags.join("") !== "1234567891011121314151617181920212223242526") {
-            // literally to work around Michael's broken creation
-            // need a fix to ignore tags with just numbers
+         if (isNaN(tags.join(""))) {
+            // creations with tags that are only numbers don't show up
             for (var j=0; j < tags.length; j++) {
                 tags_arr = [];
                 for (var k = j+1; k < tags.length; k++) {
@@ -48,7 +29,7 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
                     }
                 }
             }
-        }
+         }
         
 
     }
@@ -74,13 +55,13 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
     	}
 
         console.log("result?", result);
-/*
+
     	popularTagsCollection.find({}).sort({value: 1}).toArray(function(err, tags) {
     		tags.forEach(function(tag) {
                 console.log(JSON.stringify(tag));
             });
     	});
-*/
+
         var popular_tags = [];
 
         var unique_tags_d = []; //[ ].concat.apply([], popular_tags);
@@ -89,6 +70,7 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
         function mapFunc2 () {
             popular_tags.push(this._id.tags);
             //this = {_id: {arr: [tag1, tag2]}, value: n};
+            emit({a: this._id.tags}, 1);
 
             function uniq_fast(a) {
                 var seen = {};
@@ -113,15 +95,38 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
             var similar_sub_tags = [];
             var unique_related_tags = [];
 
+            function Levenshtein (str1, str2) {
+                var m = str1.length,
+                    n = str2.length,
+                    d = [],
+                    i, j;
+             
+                if (!m) return n;
+                if (!n) return m;
+                for (i = 0; i <= m; i++) d[i] = [i];
+                for (j = 0; j <= n; j++) d[0][j] = j;
+             
+                for (j = 1; j <= n; j++) {
+                    for (i = 1; i <= m; i++) {
+                        if (str1[i-1] === str2[j-1]) d[i][j] = d[i - 1][j - 1];
+                        else d[i][j] = Math.min(d[i-1][j], d[i][j-1], d[i-1][j-1]) + 1;
+                    }
+                }
+                return d[m][n];
+            }
+
             for (var i=0; i < unique_tags_len; i++) {
                 var cur_search = unique_tags[i];
                 for (var j=0; j < popular_tags.length; j++) {
                     var found_index = popular_tags[j].indexOf(cur_search);
+                    popular_tags[j].forEach(function (tag) {
+                        if (Levenshtein(cur_search, tag) <= 3 && Levenshtein(cur_search, tag) > 0) found_index = 1;
+                    });
                     if (found_index !== -1) {
                         similar_sub_tags.push(popular_tags[j][1-found_index]);
                     }
                 }
-                emit ({a: cur_search, b: similar_sub_tags}, 1);
+                emit (cur_search, similar_sub_tags);
                 //unique_related_tags.push([cur_search, similar_sub_tags]);
                 similar_sub_tags=[];
             }
@@ -129,7 +134,9 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
         }
 
         function reduceFunc2 (tag, count) {
-            return Array.sum(count);
+
+            count = [].concat.apply([], count);
+            return {related: Array.unique(count)};
         }
         
         popularTagsCollection.mapReduce(mapFunc2, reduceFunc2, {
