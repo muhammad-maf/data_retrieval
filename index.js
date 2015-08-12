@@ -14,13 +14,20 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
     var creationsCollection = db.collection('creations');
 
     function mapFunc1() {
-        
         var tags = this.tags;
         var all_tag_pairs = [];
         // array to hold all the possible combinations of tag pairs 
-
          if (isNaN(tags.join(""))) {
-            // creations with tags that are all numbers aren't included
+         // creations with tags that are all numbers aren't included   
+            if (tags[6] === tags[7] && tags[6] === "space") {
+                tags = ["voyager", "space", "nasa", "probe", "spaaaaace", "🌠"];
+                // there is only one case of duplicates on Cashew we should worry about so as to
+                // not skew our data, so let's hard code it ;) Using uniq_fast on every array
+                // of tags is not worth the performance cost
+            }
+            tags = tags.map(function(tag) {
+                return tag.toLowerCase();
+            });
             for (var j=0; j < tags.length; j++) {
                 var pair = [];
                 for (var k = j+1; k < tags.length; k++) {
@@ -48,12 +55,8 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
     creationsCollection.mapReduce(mapFunc1, reduceFunc1, {
     	out: {
     		replace: "tagpaircount"
-    	},
+    	}
 
-    	query: {
-            state: 1
-    	},
-        verbose: true
     }, function(err, tagPairCountCollection, result) {
     	if (err) {
     		return console.error(err);
@@ -90,8 +93,6 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
                 }
                 return out;
             }
-            // 
-
             var unique_tags_d = [].concat.apply([], popular_tags);
             // unique, popular tags, may have duplicates
 
@@ -127,14 +128,12 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
                 var cur_search = unique_tags[i];
                 for (var j=0; j < popular_tags.length; j++) {
                     var found_index = popular_tags[j].indexOf(cur_search);
-                    popular_tags[j].forEach(function (tag) {
-                        if (Levenshtein(cur_search, tag) <= 2 && Levenshtein(cur_search, tag) > 0) {
-                            found_index = 1;
+                    for (var k in popular_tags[j]) {
+                        var lev_dist = Levenshtein(cur_search, popular_tags[j][k]);
+                        if (lev_dist > 0 && lev_dist <= 2) {
+                            similar_sub_tags.push(popular_tags[j][k]);
                         }
-                        // we want to group similar tags like matterandform and MatterandForm
-                        // with a distance of 2 or less but we don't want duplicate tags
-                        // with a distance of 0 (see Levenshtein Distance)
-                    });
+                    }
                     if (found_index !== -1) {
                         similar_sub_tags.push(popular_tags[j][1-found_index]);
                     }
@@ -157,7 +156,7 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
                 replace: "relatedtags"
             },
             query: {
-                value: {$gt: 1} 
+                value: {$gt: 1}
                 // queries for the minimum times a pair of tags needs to appears in creations
                 // option: make this value = Math.floor(Math.log(all_tag_pairs.length) / Math.log(10))
                 // This can let us query for 1 greater every time the number of tag pairs increase
