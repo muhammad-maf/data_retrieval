@@ -1,3 +1,5 @@
+# testing out python code (because suck at it)
+
 import numpy as np
 import math
 

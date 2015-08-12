@@ -1,3 +1,11 @@
+/*  Muhammad Mousa
+
+    Would like to have topic distribution once we have tags that describe the same event that
+    don't cooccur. This can be done with TF-IDF of tags matching a creation's description.
+    Example: #gocavs & #gowarriors for bball / #vivabrazil & #vivaespana for a soccer match
+    
+*/
+
 var MongoClient = require('mongodb').MongoClient;
 
 MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(err, db) {
@@ -6,32 +14,29 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
     var creationsCollection = db.collection('creations');
 
     function mapFunc1() {
-        // Levenshtein distance, used for similar string comparison
-        
         
         var tags = this.tags;
-        var tags_len = tags.length;
-        var creations_arr = [];
+        var all_tag_pairs = [];
+        // array to hold all the possible combinations of tag pairs 
 
          if (isNaN(tags.join(""))) {
-            // creations with tags that are only numbers don't show up
+            // creations with tags that are all numbers aren't included
             for (var j=0; j < tags.length; j++) {
-                tags_arr = [];
+                var pair = [];
                 for (var k = j+1; k < tags.length; k++) {
                     if (tags[j]!==tags[k]) {
-                        // No duplicates like ["space", "space"] - we don't want a tag to be identified as being similar to itself 
-                        tags_arr.push(tags[j]);
-                        tags_arr.push(tags[k]);
-                        tags_arr.sort();
-                        emit ({tags: tags_arr}, 1);
-                        creations_arr.push(tags_arr);
-                        tags_arr=[];
+                        // No duplicates like ["space", "space"] - we don't want a tag to be
+                        // identified as being related to itself 
+                        pair.push(tags[j]);
+                        pair.push(tags[k]);
+                        pair.sort();
+                        emit ({tags: pair}, 1);
+                        all_tag_pairs.push(pair);
+                        pair=[];
                     }
                 }
             }
          }
-        
-
     }
 
     function reduceFunc1(tag, counts) {
@@ -42,36 +47,35 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
 
     creationsCollection.mapReduce(mapFunc1, reduceFunc1, {
     	out: {
-    		replace: "tagDoublesCount"
+    		replace: "tagpaircount"
     	},
 
     	query: {
             state: 1
     	},
         verbose: true
-    }, function(err, popularTagsCollection, result) {
+    }, function(err, tagPairCountCollection, result) {
     	if (err) {
     		return console.error(err);
     	}
 
-        console.log("result?", result);
+        // console.log("result?", result);
 
-    	popularTagsCollection.find({}).sort({value: 1}).toArray(function(err, tags) {
-    		tags.forEach(function(tag) {
-                console.log(JSON.stringify(tag));
-            });
-    	});
+        // uncomment this to print the results of the first collection
+    	// tagPairCountCollection.find({}).sort({value: 1}).toArray(function(err, tags) {
+        //        tags.forEach(function(tag) {
+        //            console.log(JSON.stringify(tag));
+        //        });
+    	// });
 
         var popular_tags = [];
-
-        var unique_tags_d = []; //[ ].concat.apply([], popular_tags);
-        // find all the unique tags that are considered popular (flattens popular_tags)
+        // array to hold all the tag pairs that appear more than n times
+        // see query: { value: n} in tagPairCountCollection.mapReduce below
 
         function mapFunc2 () {
             popular_tags.push(this._id.tags);
-            //this = {_id: {arr: [tag1, tag2]}, value: n};
-            emit({a: this._id.tags}, 1);
 
+            // removes duplicates from array
             function uniq_fast(a) {
                 var seen = {};
                 var out = [];
@@ -86,15 +90,19 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
                 }
                 return out;
             }
+            // 
 
-            unique_tags_d = [].concat.apply([], popular_tags);
+            var unique_tags_d = [].concat.apply([], popular_tags);
+            // unique, popular tags, may have duplicates
 
             var unique_tags = uniq_fast(unique_tags_d);
-            var unique_tags_len = unique_tags.length;
+            // unique, popular tags 
 
             var similar_sub_tags = [];
-            var unique_related_tags = [];
+            // related tags for a particular tag 
 
+            // Levenshtein distance, used to find the "distance" between two strings
+            // identical strings have a distance of 0
             function Levenshtein (str1, str2) {
                 var m = str1.length,
                     n = str2.length,
@@ -115,40 +123,48 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
                 return d[m][n];
             }
 
-            for (var i=0; i < unique_tags_len; i++) {
+            for (var i=0; i < unique_tags.length; i++) {
                 var cur_search = unique_tags[i];
                 for (var j=0; j < popular_tags.length; j++) {
                     var found_index = popular_tags[j].indexOf(cur_search);
                     popular_tags[j].forEach(function (tag) {
-                        if (Levenshtein(cur_search, tag) <= 3 && Levenshtein(cur_search, tag) > 0) found_index = 1;
+                        if (Levenshtein(cur_search, tag) <= 2 && Levenshtein(cur_search, tag) > 0) {
+                            found_index = 1;
+                        }
+                        // we want to group similar tags like matterandform and MatterandForm
+                        // with a distance of 2 or less but we don't want duplicate tags
+                        // with a distance of 0 (see Levenshtein Distance)
                     });
                     if (found_index !== -1) {
                         similar_sub_tags.push(popular_tags[j][1-found_index]);
                     }
                 }
                 emit (cur_search, similar_sub_tags);
-                //unique_related_tags.push([cur_search, similar_sub_tags]);
                 similar_sub_tags=[];
             }
 
         }
 
         function reduceFunc2 (tag, count) {
-
             count = [].concat.apply([], count);
             return {related: Array.unique(count)};
+            // wrap value in an object to avoid MongoError: 
+            // exception: reduce -> multiple not supported yet
         }
         
-        popularTagsCollection.mapReduce(mapFunc2, reduceFunc2, {
+        tagPairCountCollection.mapReduce(mapFunc2, reduceFunc2, {
             out: {
-                replace: "SimilarTags"
+                replace: "relatedtags"
             },
             query: {
-                value: {$gt: 1}
+                value: {$gt: 1} 
+                // queries for the minimum times a pair of tags needs to appears in creations
+                // option: make this value = Math.floor(Math.log(all_tag_pairs.length) / Math.log(10))
+                // This can let us query for 1 greater every time the number of tag pairs increase
+                // by 10x
             },
             scope: {
-                popular_tags: popular_tags,
-                unique_tags_d: unique_tags_d
+                popular_tags: popular_tags
             },
             verbose: true
         }, function(err, collection) {
@@ -158,8 +174,6 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
             collection.find().sort({value: 1}).toArray(function(err, tags) {
                 tags.forEach(function(tag) {
                     console.log(JSON.stringify(tag));
-
-
                 });
                 console.timeEnd("mapReduce");
             });
