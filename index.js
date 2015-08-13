@@ -8,6 +8,8 @@
 
 var MongoClient = require('mongodb').MongoClient;
 
+console.time("MongoClient.connect");
+
 MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(err, db) {
     if(err) throw err;
  
@@ -18,15 +20,13 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
         var all_tag_pairs = [];
         // array to hold all the possible combinations of tag pairs 
          if (isNaN(tags.join(""))) {
-         // creations with tags that are all numbers aren't included   
-            if (tags[6] === tags[7] && tags[6] === "space") {
-                tags = ["voyager", "space", "nasa", "probe", "spaaaaace", "🌠"];
-                // there is only one case of duplicates on Cashew we should worry about so as to
-                // not skew our data, so let's hard code it ;) Using uniq_fast on every array
-                // of tags is not worth the performance cost
-            }
-            tags = tags.map(function(tag) {
+         // creations with tags that are all numbers aren't included
+
+            tags = tags.filter(function (tag, index, array) {
+                return array.indexOf(tag) === index;
+            }).map(function(tag) {
                 return tag.toLowerCase();
+                // lowercase all tags
             });
             for (var j=0; j < tags.length; j++) {
                 var pair = [];
@@ -50,8 +50,6 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
         return Array.sum(counts);
     }
 
-    console.time("mapReduce");
-
     creationsCollection.mapReduce(mapFunc1, reduceFunc1, {
     	out: {
     		replace: "tagpaircount"
@@ -62,67 +60,68 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
     		return console.error(err);
     	}
 
-        // console.log("result?", result);
+        // removes duplicates from array
+        function uniq_fast(a) {
+            var seen = {};
+            var out = [];
+            var len = a.length;
+            var j = 0;
+            for(var i = 0; i < len; i++) {
+                 var item = a[i];
+                 if(seen[item] !== 1) {
+                       seen[item] = 1;
+                       out[j++] = item;
+                 }
+            }
+            return out;
+        }
 
-        // uncomment this to print the results of the first collection
-    	// tagPairCountCollection.find({}).sort({value: 1}).toArray(function(err, tags) {
-        //        tags.forEach(function(tag) {
-        //            console.log(JSON.stringify(tag));
-        //        });
-    	// });
+        // Levenshtein distance, used to find the "distance" between two strings
+        // identical strings have a distance of 0
+        function Levenshtein (str1, str2) {
+            var m = str1.length,
+                n = str2.length,
+                d = [],
+                i, j;
+         
+            if (!m) return n;
+            if (!n) return m;
+            for (i = 0; i <= m; i++) d[i] = [i];
+            for (j = 0; j <= n; j++) d[0][j] = j;
+         
+            for (j = 1; j <= n; j++) {
+                for (i = 1; i <= m; i++) {
+                    if (str1[i-1] === str2[j-1]) d[i][j] = d[i - 1][j - 1];
+                    else d[i][j] = Math.min(d[i-1][j], d[i][j-1], d[i-1][j-1]) + 1;
+                }
+            }
+            return d[m][n];
+        }
+        
+        db.createCollection("relatedtags1");
+        var relatedTagsCollection = db.collection('relatedtags1');
+        relatedTagsCollection.remove({});
 
         var popular_tags = [];
-        // array to hold all the tag pairs that appear more than n times
-        // see query: { value: n} in tagPairCountCollection.mapReduce below
+        // holds all tag pairs that appear more than n times, specified in query
 
-        function mapFunc2 () {
-            popular_tags.push(this._id.tags);
+        var unique_tags = [];
+        // the unique tags that are popular
 
-            // removes duplicates from array
-            function uniq_fast(a) {
-                var seen = {};
-                var out = [];
-                var len = a.length;
-                var j = 0;
-                for(var i = 0; i < len; i++) {
-                     var item = a[i];
-                     if(seen[item] !== 1) {
-                           seen[item] = 1;
-                           out[j++] = item;
-                     }
+        tagPairCountCollection.find().forEach (function (x) {
+            if (x.value > 1) {
+                popular_tags.push(x._id.tags);
+                for (var i=0; i<2; i++) {
+                    unique_tags.push(x._id.tags[i]);
                 }
-                return out;
+                console.log(x);
             }
-            var unique_tags_d = [].concat.apply([], popular_tags);
-            // unique, popular tags, may have duplicates
+            
+        }, function() { // callback baby!
 
-            var unique_tags = uniq_fast(unique_tags_d);
-            // unique, popular tags 
+            unique_tags = uniq_fast(unique_tags);
 
             var similar_sub_tags = [];
-            // related tags for a particular tag 
-
-            // Levenshtein distance, used to find the "distance" between two strings
-            // identical strings have a distance of 0
-            function Levenshtein (str1, str2) {
-                var m = str1.length,
-                    n = str2.length,
-                    d = [],
-                    i, j;
-             
-                if (!m) return n;
-                if (!n) return m;
-                for (i = 0; i <= m; i++) d[i] = [i];
-                for (j = 0; j <= n; j++) d[0][j] = j;
-             
-                for (j = 1; j <= n; j++) {
-                    for (i = 1; i <= m; i++) {
-                        if (str1[i-1] === str2[j-1]) d[i][j] = d[i - 1][j - 1];
-                        else d[i][j] = Math.min(d[i-1][j], d[i][j-1], d[i-1][j-1]) + 1;
-                    }
-                }
-                return d[m][n];
-            }
 
             for (var i=0; i < unique_tags.length; i++) {
                 var cur_search = unique_tags[i];
@@ -130,7 +129,7 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
                     var found_index = popular_tags[j].indexOf(cur_search);
                     for (var k in popular_tags[j]) {
                         var lev_dist = Levenshtein(cur_search, popular_tags[j][k]);
-                        if (lev_dist > 0 && lev_dist <= 2) {
+                        if (lev_dist > 0 && lev_dist <= 3 && cur_search.length>=4 && popular_tags[j][k].length >=4) {
                             similar_sub_tags.push(popular_tags[j][k]);
                         }
                     }
@@ -138,19 +137,14 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
                         similar_sub_tags.push(popular_tags[j][1-found_index]);
                     }
                 }
-                emit (cur_search, similar_sub_tags);
-                similar_sub_tags=[];
+                similar_sub_tags = uniq_fast(similar_sub_tags);
+                console.log("TAG: " + cur_search + " RELATED: " + similar_sub_tags);
+                relatedTagsCollection.insert({_id: cur_search, related: similar_sub_tags});
+                similar_sub_tags=[];    
             }
-
-        }
-
-        function reduceFunc2 (tag, count) {
-            count = [].concat.apply([], count);
-            return {related: Array.unique(count)};
-            // wrap value in an object to avoid MongoError: 
-            // exception: reduce -> multiple not supported yet
-        }
-        
+            console.timeEnd("MongoClient.connect");
+        })
+        /*
         tagPairCountCollection.mapReduce(mapFunc2, reduceFunc2, {
             out: {
                 replace: "relatedtags"
@@ -161,22 +155,7 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
                 // option: make this value = Math.floor(Math.log(all_tag_pairs.length) / Math.log(10))
                 // This can let us query for 1 greater every time the number of tag pairs increase
                 // by 10x
-            },
-            scope: {
-                popular_tags: popular_tags
-            },
-            verbose: true
-        }, function(err, collection) {
-            if (err) {
-                return console.error(err);
-            }
-            collection.find().sort({value: 1}).toArray(function(err, tags) {
-                tags.forEach(function(tag) {
-                    console.log(JSON.stringify(tag));
-                });
-                console.timeEnd("mapReduce");
-            });
-        });
+        */
 
     });
 
