@@ -22,12 +22,19 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
          if (isNaN(tags.join(""))) {
          // creations with tags that are all numbers aren't included
 
-            tags = tags.filter(function (tag, index, array) {
-                return array.indexOf(tag) === index;
-            }).map(function(tag) {
-                return tag.toLowerCase();
-                // lowercase all tags
-            });
+            tags = tags
+                .filter(function (tag, index, array) {
+                    return array.indexOf(tag) === index;
+                    // remove duplicates
+                })
+                .filter(function (tag) {
+                    return !(/([\uD800-\uDBFF])/g.test(tag));
+                    // remove emojis
+                })
+                .map(function(tag) {
+                    return tag.toLowerCase();
+                    // lowercase all tags
+                });
             for (var j=0; j < tags.length; j++) {
                 var pair = [];
                 for (var k = j+1; k < tags.length; k++) {
@@ -98,8 +105,8 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
             return d[m][n];
         }
         
-        db.createCollection("relatedtags1");
-        var relatedTagsCollection = db.collection('relatedtags1');
+        db.createCollection("relatedtags");
+        var relatedTagsCollection = db.collection('relatedtags');
         relatedTagsCollection.remove({});
 
         var popular_tags = [];
@@ -108,7 +115,11 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
         var unique_tags = [];
         // the unique tags that are popular
 
-        tagPairCountCollection.find().forEach (function (x) {
+        var count = tagPairCountCollection.count();
+        // number of tag pairs, used for median calculation
+
+        tagPairCountCollection.find().sort({value: 1}).skip(count/2 - 1).forEach (function (x) {
+            // take creations greater than the median value for tagpaircount.value
             if (x.value > 1) {
                 popular_tags.push(x._id.tags);
                 for (var i=0; i<2; i++) {
@@ -117,7 +128,8 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
                 console.log(x);
             }
             
-        }, function() { // callback baby!
+        }, function() {
+         // callback baby! Four months later and I finally understand why this is useful! <3 <3
 
             unique_tags = uniq_fast(unique_tags);
 
@@ -144,19 +156,6 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
             }
             console.timeEnd("MongoClient.connect");
         })
-        /*
-        tagPairCountCollection.mapReduce(mapFunc2, reduceFunc2, {
-            out: {
-                replace: "relatedtags"
-            },
-            query: {
-                value: {$gt: 1}
-                // queries for the minimum times a pair of tags needs to appears in creations
-                // option: make this value = Math.floor(Math.log(all_tag_pairs.length) / Math.log(10))
-                // This can let us query for 1 greater every time the number of tag pairs increase
-                // by 10x
-        */
-
     });
 
     
