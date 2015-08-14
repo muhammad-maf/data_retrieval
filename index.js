@@ -36,16 +36,16 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
                     // lowercase all tags
                 });
                 for (var j=0; j < tags.length; j++) {
-                    var pair = [];
+                    var pair = "";
                     for (var k = j+1; k < tags.length; k++) {
                         if (tags[j]!==tags[k]) {
                             // No duplicates like ["space", "space"] - we don't want a tag to be
-                            // identified as being related to itself 
-                            pair.push(tags[j]);
-                            pair.push(tags[k]);
-                            emit ({tags: pair}, 1);
+                            // identified as being related to itself
+                            pair = tags[j].concat(","+tags[k]); 
+                            emit (tags[j].concat(","+tags[k]), 1);
+                            
                             all_tag_pairs.push(pair);
-                            pair=[];
+                            pair="";
                         }
                     }
                 }
@@ -57,14 +57,24 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
         }
 
         creationsCollection.mapReduce(mapFunc1, reduceFunc1, {
-        	out: {
-        		replace: "tagpaircount"
-        	}
+            out: {
+                replace: "tagpaircount"
+            },
+            query: {
+                state: 1
+            }
 
         }, function(err, tagPairCountCollection, result) {
-        	if (err) {
-        		return console.error(err);
-        	}
+            if (err) {
+                return console.error(err);
+            }
+
+            
+        // tagPairCountCollection.find({}).sort({value: 1}).toArray(function(err, tags) {
+        //     tags.forEach(function(tag) {
+        //         console.log(JSON.stringify(tag));
+        //     });
+        // });
 
             // removes duplicates from array
             function uniq_fast(a) {
@@ -119,11 +129,12 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
 
             tagPairCountCollection.find().sort({value: 1}).skip(count/2 - 1).forEach (function (x) {
                 // take creations greater than the median value for tagpaircount.value
-                popular_tags.push(x._id.tags);
+                popular_tags.push(x._id);
+                var tag = x._id.split(",");
                 for (var i=0; i<2; i++) {
-                    unique_tags.push(x._id.tags[i]);
+                    unique_tags.push(tag[i]);
                 }
-                // console.log(x);
+                // console.log(JSON.stringify(x));
                 
                 
             }, function() {
@@ -132,34 +143,43 @@ MongoClient.connect('mongodb://127.0.0.1:27017/matter-and-form-api', function(er
 
             unique_tags = uniq_fast(unique_tags);
             var similar_sub_tags = [];
-            // the related tags array for a specific tag
+            //the related tags array for a specific tag
 
             for (var i=0; i < unique_tags.length; i++) {
                 var cur_search = unique_tags[i];
                 for (var j=0; j < popular_tags.length; j++) {
+                    // console.log("pop_tag_j!!!" + popular_tags[j]);
                     var found_index = popular_tags[j].indexOf(cur_search);
-                    for (var k in popular_tags[j]) {
-                        var lev_dist = Levenshtein(cur_search, popular_tags[j][k]);
-                        if (lev_dist > 0 && lev_dist <= 3 && cur_search.length>=4 && popular_tags[j][k].length >=4) {
-                            // in order of conditions:
-                            // 1. No identical tags grouped together
-                            // 2. Group tags with a distance of <= 3 together, like "matterform" and "matterandform"
-                            // 3., 4. No distance comparison unless the strings are at least length 4; we don't
-                            // want "cad" and "cat" and "dog" and "hat" and "tf2" all being grouped together based on
-                            // criteria 1 and 2
-                            similar_sub_tags.push(popular_tags[j][k]);
+                    var tags = popular_tags[j].split(",");
+                    
+                        
+                        for (var k in tags) {
+                            var lev_dist = Levenshtein(cur_search, tags[k]);
+
+                            if (lev_dist > 0 && lev_dist <= 3 && 
+                                cur_search.length>=4 && tags[k].length >=4 &&
+                                similar_sub_tags.indexOf(tags[k])===-1) {
+                                // in order of conditions:
+                                // 1. No identical tags grouped together
+                                // 2. Group tags with a distance of <= 3 together, like "matterform" and "matterandform"
+                                // 3., 4. No distance comparison unless the strings are at least length 4; we don't
+                                // want "cad" and "cat" and "dog" and "hat" and "tf2" all being grouped together based on
+                                // criteria 1 and 2
+                                similar_sub_tags.push(tags[k]);
+                            }
                         }
-                    }
-                    if (popular_tags[j].indexOf(cur_search) !== -1) {
-                        similar_sub_tags.push(popular_tags[j][1-found_index]);
+                    
+                    
+                    if (found_index !== -1) {
+                        similar_sub_tags.push(tags[1-found_index]);
                     }
                 }
                 similar_sub_tags = uniq_fast(similar_sub_tags);
-                console.log("TAG: " + unique_tags[i] + " RELATED: " + similar_sub_tags);
-                relatedTagsCollection.insert({_id: unique_tags[i], related: similar_sub_tags});
+                console.log("TAG: " + cur_search + " RELATED: " + similar_sub_tags);
+                relatedTagsCollection.insert({_id: cur_search, related: similar_sub_tags});
                 similar_sub_tags=[];
             }
-            console.timeEnd("MongoClient.connect");
+             console.timeEnd("MongoClient.connect");
         })
-    });
+     });
 });
