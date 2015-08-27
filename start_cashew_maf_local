@@ -1,0 +1,15 @@
+#!/bin/bash
+# Quick start for maf/cashew workspace!
+#
+# Open terminal
+# cd to where this is located (e.g., Desktop)
+# ./start_cashew_maf_local
+#
+# Opens 5 tabs to do processes
+# cd MAF-API > node index 
+# cd MAF-Web > node index
+# cd Cashew-Web> node index
+# cd MAF-Frontend > gulp watch
+# cd MAF-Frontend > git status
+
+gnome-terminal --tab -e "bash -c \"cd ~/Documents/projects/Matter-and-Form-API; node index.js; exec bash\"" --tab -e "bash -c \"cd ~/Documents/projects/Matter-and-Form-Web; node index.js; exec bash\"" --tab -e "bash -c \"cd ~/Documents/projects/Cashew-Web; node index.js; exec bash\"" --tab -e "bash -c \"cd ~/Documents/projects/Matter-and-Form-Frontend; gulp watch; exec bash\"" --tab -e "bash -c \"cd ~/Documents/projects/Matter-and-Form-Frontend; git status; exec bash\""
